@@ -846,18 +846,25 @@ export default function StatsQuiz() {
   const [answers, setAnswers] = useState<Record<number, AnswerRecord>>({});
   const [filter, setFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [oneAtATime, setOneAtATime] = useState(false);
+  const [order, setOrder] = useState<number[]>(() => questions.map((q) => q.id));
   const ITEMS_PER_PAGE = 10;
 
   const topics = ["All", ...Array.from(new Set(questions.map((q) => q.topic)))];
 
+  const orderedQs = order.map((id) => questions.find((q) => q.id === id)!);
   const filteredQs =
-    filter === "All" ? questions : questions.filter((q) => q.topic === filter);
+    filter === "All" ? orderedQs : orderedQs.filter((q) => q.topic === filter);
 
-  const totalPages = Math.ceil(filteredQs.length / ITEMS_PER_PAGE);
-  const paginatedQs = filteredQs.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
-  );
+  const totalPages = oneAtATime
+    ? filteredQs.length
+    : Math.ceil(filteredQs.length / ITEMS_PER_PAGE);
+  const paginatedQs = oneAtATime
+    ? [filteredQs[currentPage - 1]].filter(Boolean)
+    : filteredQs.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE,
+      );
 
   const answered = Object.keys(answers).length;
   const correct = Object.values(answers).filter((a) => a.correct).length;
@@ -876,6 +883,17 @@ export default function StatsQuiz() {
     setAnswers({});
     setCurrentPage(1);
     setFilter("All");
+    setOrder(questions.map((q) => q.id));
+  }
+
+  function shuffle() {
+    const ids = questions.map((q) => q.id);
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+    }
+    setOrder(ids);
+    setCurrentPage(1);
   }
 
   const progressPct = Math.round((answered / questions.length) * 100);
@@ -903,12 +921,30 @@ export default function StatsQuiz() {
                 {correct} correct · {score}%
               </span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap justify-end">
               <button
                 onClick={() => setView(view === "list" ? "quiz" : "list")}
                 className="text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 transition"
               >
                 {view === "list" ? "📝 Start Quiz" : "📋 View All"}
+              </button>
+              {view === "quiz" && (
+                <button
+                  onClick={() => { setOneAtATime((v) => !v); setCurrentPage(1); }}
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition ${
+                    oneAtATime
+                      ? "bg-violet-600 border-violet-500 text-white"
+                      : "bg-white/10 border-white/10 text-gray-300 hover:bg-white/20"
+                  }`}
+                >
+                  {oneAtATime ? "1️⃣ One at a time" : "📄 All at once"}
+                </button>
+              )}
+              <button
+                onClick={shuffle}
+                className="text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 transition text-gray-300"
+              >
+                🔀 Shuffle
               </button>
               <button
                 onClick={reset}
@@ -1060,7 +1096,7 @@ export default function StatsQuiz() {
             </div>
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center gap-2 mt-8">
+              <div className="flex justify-center items-center gap-2 mt-8">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
@@ -1068,20 +1104,26 @@ export default function StatsQuiz() {
                 >
                   ← Prev
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (p) => (
-                    <button
-                      key={p}
-                      onClick={() => setCurrentPage(p)}
-                      className={`w-8 h-8 rounded-lg text-xs font-bold border transition ${
-                        p === currentPage
-                          ? "bg-white text-gray-900 border-white"
-                          : "border-white/10 text-gray-400 hover:bg-white/10"
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ),
+                {oneAtATime ? (
+                  <span className="text-xs text-gray-400 px-2">
+                    {currentPage} / {totalPages}
+                  </span>
+                ) : (
+                  Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (p) => (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p)}
+                        className={`w-8 h-8 rounded-lg text-xs font-bold border transition ${
+                          p === currentPage
+                            ? "bg-white text-gray-900 border-white"
+                            : "border-white/10 text-gray-400 hover:bg-white/10"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ),
+                  )
                 )}
                 <button
                   onClick={() =>
