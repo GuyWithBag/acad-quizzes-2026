@@ -1,6 +1,22 @@
 import { useState } from "react";
 
-const questions = [
+type Topic = "Correlation" | "Regression" | "Time Series" | "Time Series (R)";
+
+interface Question {
+  id: number;
+  topic: Topic;
+  question: string;
+  options: string[];
+  answer: number;
+  explanation: string;
+}
+
+interface AnswerRecord {
+  selected: number;
+  correct: boolean;
+}
+
+const questions: Question[] = [
   // ── CORRELATION ──────────────────────────────────────────────
   {
     id: 1,
@@ -737,7 +753,7 @@ const questions = [
   },
 ];
 
-const TOPIC_COLORS = {
+const TOPIC_COLORS: Record<Topic, { bg: string; border: string; badge: string }> = {
   Correlation: {
     bg: "bg-violet-900/30",
     border: "border-violet-500/40",
@@ -760,7 +776,7 @@ const TOPIC_COLORS = {
   },
 };
 
-function TopicBadge({ topic }) {
+function TopicBadge({ topic }: { topic: Topic }) {
   const c = TOPIC_COLORS[topic] || TOPIC_COLORS["Time Series"];
   return (
     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${c.badge}`}>
@@ -769,7 +785,7 @@ function TopicBadge({ topic }) {
   );
 }
 
-function QuestionCard({ q, onAnswer, answered }) {
+function QuestionCard({ q, onAnswer, answered }: { q: Question; onAnswer: (qId: number, selected: number) => void; answered?: AnswerRecord }) {
   const c = TOPIC_COLORS[q.topic] || TOPIC_COLORS["Time Series"];
   return (
     <div
@@ -827,7 +843,7 @@ function QuestionCard({ q, onAnswer, answered }) {
 
 export default function StatsQuiz() {
   const [view, setView] = useState("list"); // "list" | "quiz"
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState<Record<number, AnswerRecord>>({});
   const [filter, setFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -847,8 +863,9 @@ export default function StatsQuiz() {
   const correct = Object.values(answers).filter((a) => a.correct).length;
   const score = answered > 0 ? Math.round((correct / answered) * 100) : 0;
 
-  function handleAnswer(qId, selected) {
+  function handleAnswer(qId: number, selected: number) {
     const q = questions.find((x) => x.id === qId);
+    if (!q) return;
     setAnswers((prev) => ({
       ...prev,
       [qId]: { selected, correct: selected === q.answer },
